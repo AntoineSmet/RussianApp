@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Russe ABC">
+<title>Russe ABC</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f0f0f;color:#f0f0f0;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;user-select:none;}
+  .topbar{padding:52px 20px 12px;display:flex;justify-content:space-between;align-items:center;}
+  .topbar h1{font-size:17px;font-weight:600;letter-spacing:0.3px;}
+  .mode-toggle{display:flex;background:#1e1e1e;border-radius:10px;padding:3px;gap:2px;}
+  .mode-btn{padding:6px 12px;font-size:12px;border:none;border-radius:8px;background:transparent;color:#888;font-weight:500;cursor:pointer;transition:all 0.2s;}
+  .mode-btn.active{background:#2a2a2a;color:#fff;}
+  .dots-row{display:flex;flex-wrap:wrap;gap:5px;padding:0 20px 16px;justify-content:center;}
+  .dot{width:9px;height:9px;border-radius:50%;background:#2a2a2a;transition:background 0.3s;}
+  .dot.known{background:#30d158;}
+  .dot.unknown{background:#ff453a;}
+  .dot.current{background:#636366;}
+  .card-area{flex:1;display:flex;align-items:center;justify-content:center;padding:0 20px;perspective:1000px;}
+  .card-wrap{width:100%;max-width:360px;height:240px;cursor:pointer;}
+  .card-inner{width:100%;height:100%;position:relative;transform-style:preserve-3d;transition:transform 0.45s cubic-bezier(.4,0,.2,1);}
+  .card-inner.flipped{transform:rotateY(180deg);}
+  .card-face{position:absolute;width:100%;height:100%;backface-visibility:hidden;border-radius:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;}
+  .card-front{background:#1c1c1e;border:0.5px solid #2c2c2e;}
+  .card-back{background:#1c1c1e;border:0.5px solid #2c2c2e;transform:rotateY(180deg);}
+  .card-tag{font-size:11px;font-weight:500;color:#636366;letter-spacing:0.5px;text-transform:uppercase;}
+  .card-main{font-size:68px;font-weight:300;color:#f0f0f0;line-height:1;}
+  .card-main.small{font-size:28px;font-weight:500;}
+  .card-translit{font-size:26px;font-weight:500;color:#f0f0f0;}
+  .card-equiv{font-size:14px;color:#8e8e93;text-align:center;padding:0 20px;max-width:280px;}
+
+  .tap-hint{text-align:center;font-size:12px;color:#48484a;padding:10px 0 0;}
+  .bottom{padding:16px 20px 40px;display:flex;flex-direction:column;gap:10px;}
+  .answer-row{display:flex;gap:10px;}
+  .answer-row.hidden{display:none;}
+  .abtn{flex:1;padding:16px;border:none;border-radius:14px;font-size:15px;font-weight:600;cursor:pointer;transition:transform 0.1s;}
+  .abtn:active{transform:scale(0.97);}
+  .abtn.yes{background:#1c3a28;color:#30d158;}
+  .abtn.no{background:#3a1c1c;color:#ff453a;}
+  .abtn.next{background:#2a2a2a;color:#f0f0f0;flex:1;}
+  .abtn.next.hidden{display:none;}
+  .nav-row{display:flex;gap:8px;}
+  .nbtn{flex:1;padding:12px;border:none;border-radius:12px;background:#1c1c1e;color:#8e8e93;font-size:13px;font-weight:500;cursor:pointer;border:0.5px solid #2c2c2e;}
+  .nbtn:active{opacity:0.7;}
+  .nbtn:disabled{opacity:0.3;}
+  .progress-txt{display:flex;justify-content:space-between;font-size:12px;color:#48484a;padding:0 20px 8px;}
+  .summary{display:none;flex:1;flex-direction:column;align-items:center;justify-content:center;padding:20px;text-align:center;}
+  .sum-big{font-size:72px;font-weight:700;color:#f0f0f0;}
+  .sum-sub{font-size:15px;color:#8e8e93;margin:6px 0 32px;}
+  .sum-btns{display:flex;flex-direction:column;gap:10px;width:100%;max-width:300px;}
+  .streak-bar{display:flex;align-items:center;gap:6px;padding:8px 20px 0;justify-content:center;}
+  .streak-txt{font-size:13px;color:#ff9f0a;font-weight:500;}
+  .auto-row{display:flex;align-items:center;justify-content:center;gap:8px;padding:4px 20px 0;}
+  .auto-lbl{font-size:12px;color:#636366;}
+  .toggle{position:relative;width:36px;height:20px;background:#2a2a2a;border-radius:10px;cursor:pointer;transition:background 0.2s;border:none;}
+  .toggle.on{background:#0a84ff;}
+  .toggle::after{content:'';position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:#fff;transition:transform 0.2s;}
+  .toggle.on::after{transform:translateX(16px);}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>Alphabet Russe</h1>
+  <div class="mode-toggle">
+    <button class="mode-btn active" id="btn-ru" onclick="setMode('ru-fr')">RU→FR</button>
+    <button class="mode-btn" id="btn-fr" onclick="setMode('fr-ru')">FR→RU</button>
+  </div>
+</div>
+
+<div class="streak-bar" id="streak-bar" style="display:none;">
+  <span style="font-size:16px;">🔥</span>
+  <span class="streak-txt" id="streak-txt">Série : 0 jours</span>
+</div>
+
+<div class="dots-row" id="dots"></div>
+
+<div class="progress-txt">
+  <span id="prog-txt">Carte 1 / 33</span>
+  <span id="score-txt">Connues : 0</span>
+</div>
+
+<div class="card-area" id="card-area">
+  <div class="card-wrap" onclick="flip()">
+    <div class="card-inner" id="ci">
+      <div class="card-face card-front">
+        <span class="card-tag" id="ftag">Lettre russe</span>
+        <span class="card-main" id="fmain">А а</span>
+
+      </div>
+      <div class="card-face card-back">
+        <span class="card-tag" id="btag">Translittération</span>
+        <span class="card-translit" id="btr">A / a</span>
+        <span class="card-equiv" id="beq">Comme "a" dans "chat"</span>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<p class="tap-hint" id="hint">Touchez la carte pour la retourner</p>
+
+<div class="summary" id="summary">
+  <div class="sum-big" id="sum-pct">0%</div>
+  <div class="sum-sub" id="sum-sub">0 connues sur 33</div>
+  <div class="sum-btns">
+    <button class="abtn next" onclick="restart()">Recommencer tout</button>
+    <button class="abtn next" onclick="reviewUnknown()" id="review-btn">Revoir les inconnues</button>
+  </div>
+</div>
+
+<div class="bottom">
+  <div class="answer-row hidden" id="arow">
+    <button class="abtn no" onclick="mark(false)">✗ Je ne savais pas</button>
+    <button class="abtn yes" onclick="mark(true)">✓ Je savais !</button>
+  </div>
+  <button class="abtn next hidden" id="nextbtn" onclick="next()">Carte suivante →</button>
+  <div class="nav-row">
+    <button class="nbtn" id="pbtn" onclick="prev()" disabled>← Préc.</button>
+    <button class="nbtn" onclick="shuffleCards()">Mélanger</button>
+    <button class="nbtn" onclick="restart()">Restart</button>
+  </div>
+</div>
+
+<script>
+const A=[
+  {ru:'А а',tr:'A / a',eq:'Comme "a" dans "chat"',speak:'А'},
+  {ru:'Б б',tr:'B / b',eq:'Comme "b" dans "bon"',speak:'Б'},
+  {ru:'В в',tr:'V / v',eq:'Comme "v" dans "vie"',speak:'В'},
+  {ru:'Г г',tr:'G / g',eq:'Comme "g" dans "gare"',speak:'Г'},
+  {ru:'Д д',tr:'D / d',eq:'Comme "d" dans "dos"',speak:'Д'},
+  {ru:'Е е',tr:'Ye / ye',eq:'Comme "ye" dans "yeux"',speak:'Е'},
+  {ru:'Ё ё',tr:'Yo / yo',eq:'Comme "yo" dans "yogi"',speak:'Ё'},
+  {ru:'Ж ж',tr:'Zh / zh',eq:'Comme "j" dans "journal"',speak:'Ж'},
+  {ru:'З з',tr:'Z / z',eq:'Comme "z" dans "zéro"',speak:'З'},
+  {ru:'И и',tr:'I / i',eq:'Comme "i" dans "île"',speak:'И'},
+  {ru:'Й й',tr:'Y / y',eq:'Comme "y" dans "yeux" (bref)',speak:'Й'},
+  {ru:'К к',tr:'K / k',eq:'Comme "k" dans "kilo"',speak:'К'},
+  {ru:'Л л',tr:'L / l',eq:'Comme "l" dans "lune"',speak:'Л'},
+  {ru:'М м',tr:'M / m',eq:'Comme "m" dans "mer"',speak:'М'},
+  {ru:'Н н',tr:'N / n',eq:'Comme "n" dans "nuit"',speak:'Н'},
+  {ru:'О о',tr:'O / o',eq:'Comme "o" dans "or"',speak:'О'},
+  {ru:'П п',tr:'P / p',eq:'Comme "p" dans "pain"',speak:'П'},
+  {ru:'Р р',tr:'R / r',eq:'R roulé (comme en espagnol)',speak:'Р'},
+  {ru:'С с',tr:'S / s',eq:'Comme "s" dans "sol"',speak:'С'},
+  {ru:'Т т',tr:'T / t',eq:'Comme "t" dans "tour"',speak:'Т'},
+  {ru:'У у',tr:'U / u',eq:'Comme "ou" dans "fou"',speak:'У'},
+  {ru:'Ф ф',tr:'F / f',eq:'Comme "f" dans "feu"',speak:'Ф'},
+  {ru:'Х х',tr:'Kh / kh',eq:'Comme "ch" en allemand "Bach"',speak:'Х'},
+  {ru:'Ц ц',tr:'Ts / ts',eq:'Comme "ts" dans "tsar"',speak:'Ц'},
+  {ru:'Ч ч',tr:'Tch / tch',eq:'Comme "tch" dans "tchèque"',speak:'Ч'},
+  {ru:'Ш ш',tr:'Ch / ch',eq:'Comme "ch" dans "chat" (dur)',speak:'Ш'},
+  {ru:'Щ щ',tr:'Chtch',eq:'Comme "ch" allongé et mouillé',speak:'Щ'},
+  {ru:'Ъ ъ',tr:'(signe dur)',eq:'Séparateur, pas de son propre',speak:'твёрдый знак'},
+  {ru:'Ы ы',tr:'Y / y',eq:'"i" profond, au fond de la gorge',speak:'Ы'},
+  {ru:'Ь ь',tr:'(signe mou)',eq:'Adoucit la consonne précédente',speak:'мягкий знак'},
+  {ru:'Э э',tr:'E / e',eq:'Comme "è" dans "fête"',speak:'Э'},
+  {ru:'Ю ю',tr:'You / you',eq:'Comme "you" en anglais',speak:'Ю'},
+  {ru:'Я я',tr:'Ya / ya',eq:'Comme "ya" dans "yack"',speak:'Я'},
+];
+
+let cards=[...A],idx=0,flipped=false,mode='ru-fr',known=new Array(A.length).fill(null);
+
+function updateStreak(){
+  try{
+    const today=new Date().toDateString();
+    const data=JSON.parse(localStorage.getItem('russe_streak')||'{}');
+    const yesterday=new Date(Date.now()-86400000).toDateString();
+    let s=data.streak||0;
+    if(data.last===today){s=data.streak||1;}
+    else if(data.last===yesterday){s=(data.streak||0)+1;}
+    else{s=1;}
+    localStorage.setItem('russe_streak',JSON.stringify({last:today,streak:s}));
+    document.getElementById('streak-bar').style.display='flex';
+    document.getElementById('streak-txt').textContent='Série : '+s+' jour'+(s>1?'s':'');
+  }catch(e){}
+}
+
+function setMode(m){
+  mode=m;
+  document.getElementById('btn-ru').className='mode-btn'+(m==='ru-fr'?' active':'');
+  document.getElementById('btn-fr').className='mode-btn'+(m==='fr-ru'?' active':'');
+  resetFlip();render();
+}
+
+function render(){
+  if(idx>=cards.length){showSummary();return;}
+  const c=cards[idx];
+  if(mode==='ru-fr'){
+    document.getElementById('ftag').textContent='Lettre russe';
+    const fm=document.getElementById('fmain');fm.textContent=c.ru;fm.className='card-main';
+    document.getElementById('btag').textContent='Translittération';
+    document.getElementById('btr').textContent=c.tr;
+  }else{
+    document.getElementById('ftag').textContent='Translittération';
+    const fm=document.getElementById('fmain');fm.textContent=c.tr;fm.className='card-main small';
+    document.getElementById('btag').textContent='Lettre russe';
+    document.getElementById('btr').textContent=c.ru;
+  }
+  document.getElementById('beq').textContent=c.eq;
+  document.getElementById('prog-txt').textContent='Carte '+(idx+1)+' / '+cards.length;
+  document.getElementById('score-txt').textContent='Connues : '+known.filter(x=>x===true).length;
+  document.getElementById('pbtn').disabled=idx===0;
+  renderDots();
+}
+
+function renderDots(){
+  const d=document.getElementById('dots');d.innerHTML='';
+  cards.forEach((_,i)=>{
+    const el=document.createElement('div');
+    el.className='dot'+(i===idx?' current':(known[i]===true?' known':(known[i]===false?' unknown':'')));
+    d.appendChild(el);
+  });
+}
+
+function flip(){
+  if(idx>=cards.length)return;
+  flipped=!flipped;
+  document.getElementById('ci').className='card-inner'+(flipped?' flipped':'');
+  document.getElementById('hint').style.display=flipped?'none':'';
+  document.getElementById('arow').className='answer-row'+(flipped?'':' hidden');
+  if(!flipped)document.getElementById('nextbtn').className='abtn next hidden';
+
+}
+
+function mark(v){
+  known[idx]=v;
+  document.getElementById('arow').className='answer-row hidden';
+  document.getElementById('nextbtn').className='abtn next';
+  renderDots();
+}
+
+function next(){idx++;resetFlip();render();}
+function prev(){if(idx>0){idx--;resetFlip();render();}}
+
+function resetFlip(){
+  flipped=false;
+  document.getElementById('ci').className='card-inner';
+  document.getElementById('hint').style.display='';
+  document.getElementById('arow').className='answer-row hidden';
+  document.getElementById('nextbtn').className='abtn next hidden';
+  document.getElementById('summary').style.display='none';
+  document.getElementById('card-area').style.display='flex';
+}
+
+function shuffleCards(){
+  cards=cards.sort(()=>Math.random()-0.5);
+  known=new Array(cards.length).fill(null);
+  idx=0;resetFlip();render();
+}
+
+function restart(){
+  cards=[...A];known=new Array(A.length).fill(null);
+  idx=0;resetFlip();render();
+}
+
+function reviewUnknown(){
+  const u=cards.filter((_,i)=>known[i]===false);
+  if(!u.length){restart();return;}
+  cards=u;known=new Array(u.length).fill(null);
+  idx=0;resetFlip();render();
+}
+
+function showSummary(){
+  const total=cards.length,kc=known.filter(x=>x===true).length,pct=Math.round(kc/total*100);
+  document.getElementById('sum-pct').textContent=pct+'%';
+  document.getElementById('sum-sub').textContent=kc+' connues sur '+total+' cartes';
+  document.getElementById('review-btn').style.display=known.some(x=>x===false)?'':'none';
+  document.getElementById('summary').style.display='flex';
+  document.getElementById('card-area').style.display='none';
+  document.getElementById('hint').style.display='none';
+  document.getElementById('arow').className='answer-row hidden';
+  document.getElementById('nextbtn').className='abtn next hidden';
+}
+
+updateStreak();render();
+</script>
+</body>
+</html>
